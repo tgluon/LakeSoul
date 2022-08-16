@@ -27,15 +27,11 @@
             <groupId>com.dmetasoul</groupId>
             <artifactId>lakesoul-common</artifactId>
             <version>2.1.0-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>/Users/ceng/Documents/GitHub/LakeSoul/lakesoul-common/target/lakesoul-common-2.1.0-SNAPSHOT.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.dmetasoul</groupId>
             <artifactId>lakesoul-io-java</artifactId>
             <version>2.1.1-alpha-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>/Users/ceng/Documents/GitHub/LakeSoul/native-io/lakesoul-io-java/target/lakesoul-io-java-2.1.1-alpha-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -152,10 +148,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>src/main/scala</sourceDirectory>
-        <testSourceDirectory>src/test/scala</testSourceDirectory>
-        <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-        <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -188,10 +180,10 @@
                         </goals>
                     </execution>
                 </executions>
-<!--                <configuration>-->
+                <configuration>
 <!--                    <recompileMode>incremental</recompileMode>-->
 <!--                    <compileOrder>JavaThenScala</compileOrder>-->
-<!--                </configuration>-->
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.scala-tools</groupId>

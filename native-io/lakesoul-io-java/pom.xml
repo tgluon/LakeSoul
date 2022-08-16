@@ -149,6 +149,10 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+<!--                                        <recompileMode>incremental</recompileMode>-->
+                                        <compileOrder>Mixed</compileOrder>
+                </configuration>
             </plugin>
         </plugins>
     </build>

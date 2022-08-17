@@ -181,7 +181,7 @@
                     </execution>
                 </executions>
                 <configuration>
-<!--                    <recompileMode>incremental</recompileMode>-->
+                    <recompileMode>all</recompileMode>
 <!--                    <compileOrder>JavaThenScala</compileOrder>-->
                 </configuration>
             </plugin>

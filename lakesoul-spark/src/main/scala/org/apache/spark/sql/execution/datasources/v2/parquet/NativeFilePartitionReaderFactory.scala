@@ -11,15 +11,20 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 abstract class NativeFilePartitionReaderFactory extends PartitionReaderFactory with Logging{
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.RangeFilePartitionReaderFactory.createReader")
+    logInfo("[Debug][huazeng]on createReader " + partition.toString)
     assert(partition.isInstanceOf[MergeFilePartition])
     val filePartition = partition.asInstanceOf[MergeFilePartition]
 
     val iter = filePartition.files.toIterator.map { files =>
-      assert(files.forall(_.isInstanceOf[MergePartitionedFile]))
-      files -> buildColumnarReader(files)
+//      assert(files.forall(_.isInstanceOf[MergePartitionedFile]))
+      logInfo("[Debug][huazeng]on createReader "+files.forall(_.isInstanceOf[MergePartitionedFile]).toString)
+      val reader = buildColumnarReader(files)
+      logInfo("[Debug][huazeng]on createReader " + reader.toString)
+      files -> reader
     }.toSeq
-    new NativeFilePartitionReader[InternalRow](iter)
+    logInfo("[Debug][huazeng]on createReader " + iter.toString())
+    val reader = new NativeFilePartitionReader[InternalRow](iter)
+    reader
   }
 
   override def createColumnarReader(partition: InputPartition): PartitionReader[ColumnarBatch] = {
@@ -28,6 +33,7 @@ abstract class NativeFilePartitionReaderFactory extends PartitionReaderFactory w
   }
 
   def buildColumnarReader(partitionedFile: Array[MergePartitionedFile]): PartitionReader[ColumnarBatch] = {
+    logInfo("[Debug][huazeng]on buildColumnarReader " + partitionedFile.toString)
     throw new UnsupportedOperationException("Cannot create columnar reader.")
   }
 }

@@ -50,13 +50,15 @@ case class NativeParquetScan(sparkSession: SparkSession,
 
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.NativeParquetScan.createReaderFactory")
+    logInfo("[Debug][huazeng]on createReaderFactory")
     val broadcastedConf = sparkSession.sparkContext.broadcast(
       new SerializableConfiguration(hadoopConf))
 
 
-    NativeParquetPartitionReaderFactory(sparkSession.sessionState.conf, broadcastedConf,
+    val factory = NativeParquetPartitionReaderFactory(sparkSession.sessionState.conf, broadcastedConf,
       dataSchema, readDataSchema, readPartitionSchema, pushedFilters)
+    logInfo("[Debug][huazeng]on createReaderFactory, create success " + factory)
+    factory
   }
 
   private val isCaseSensitive = sparkSession.sessionState.conf.caseSensitiveAnalysis
@@ -72,7 +74,9 @@ case class NativeParquetScan(sparkSession: SparkSession,
   override lazy val newFileIndex: LakeSoulFileIndexV2 = fileIndex
 
   override protected def partitions: Seq[MergeFilePartition] = {
+    logInfo("[Debug][huazeng]on partitions")
     val selectedPartitions = newFileIndex.listFiles(partitionFilters, dataFilters)
+    logInfo("[Debug][huazeng]on partitions" + selectedPartitions.toString())
     val partitionAttributes = newFileIndex.partitionSchema.toAttributes
     val attributeMap = partitionAttributes.map(a => normalizeName(a.name) -> a).toMap
     val readPartitionAttributes = readPartitionSchema.map { readField =>
@@ -90,6 +94,7 @@ case class NativeParquetScan(sparkSession: SparkSession,
       } else {
         partition.values
       }
+      logInfo("[Debug][huazeng]on partitions" + partitionValues.toString())
 
       // produce requested schema
       val requestedFields = readDataSchema.fieldNames
@@ -102,10 +107,11 @@ case class NativeParquetScan(sparkSession: SparkSession,
               .map(c => tableInfo.schema(c))
           ))
         })
+      logInfo("[Debug][huazeng]on partitions" + requestFilesSchemaMap.toString())
+      logInfo("[Debug][huazeng]on partitions" + partition.files.toString())
 
       partition.files.flatMap { file =>
         val filePath = file.getPath
-
         Seq(getPartitionedFile(
           sparkSession,
           file,
@@ -119,6 +125,7 @@ case class NativeParquetScan(sparkSession: SparkSession,
       }.toSeq
       //.sortBy(_.length)(implicitly[Ordering[Long]].reverse)
     }
+    logInfo("[Debug][huazeng]on partitions"+splitFiles.toString)
 
     if (splitFiles.length == 1) {
       val path = new Path(splitFiles(0).filePath)
@@ -128,33 +135,38 @@ case class NativeParquetScan(sparkSession: SparkSession,
           s"partition, the reason is: ${getFileUnSplittableReason(path)}")
       }
     }
+    logInfo("[Debug][huazeng]on partitions"+splitFiles.toString)
 
     //    MergeFilePartition.getFilePartitions(sparkSession.sessionState.conf, splitFiles, tableInfo.bucket_num)
-    getFilePartitions(sparkSession.sessionState.conf, splitFiles, tableInfo.bucket_num)
+    getFilePartitions(sparkSession.sessionState.conf, splitFiles, 1)
   }
 
   override def getFilePartitions(conf: SQLConf,
                                  partitionedFiles: Seq[MergePartitionedFile],
                                  bucketNum: Int): Seq[MergeFilePartition] = {
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.NativeParquetScan.getFilePartitions")
+    logInfo("[Debug][huazeng]on getFilePartitions:")
     val fileWithBucketId: Map[Int, Map[String, Seq[MergePartitionedFile]]] = partitionedFiles
       .groupBy(_.fileBucketId)
       .map(f => (f._1, f._2.groupBy(_.rangeKey)))
+    logInfo("[Debug][huazeng]on getFilePartitions:" + fileWithBucketId.toString)
+    val bucketId = -1
 
-    Seq.tabulate(bucketNum) { bucketId =>
-      val files = fileWithBucketId.getOrElse(bucketId, Map.empty[String, Seq[MergePartitionedFile]])
-        .map(_._2.toArray).toArray
+    val files = fileWithBucketId.getOrElse(bucketId, Map.empty[String, Seq[MergePartitionedFile]])
+      .map(_._2.toArray).toArray
 
-      var isSingleFile = false
-      for (index <- 0 to files.size - 1) {
-        isSingleFile = files(index).size == 1
-        if (!isSingleFile) {
-          val versionFiles = for (elem <- 0 to files(index).size - 1) yield files(index)(elem).copy(writeVersion = elem)
-          files(index) = versionFiles.toArray
-        }
+    var isSingleFile = false
+    for (index <- 0 to files.size - 1) {
+      isSingleFile = files(index).size == 1
+      if (!isSingleFile) {
+        val versionFiles = for (elem <- 0 to files(index).size - 1) yield files(index)(elem).copy(writeVersion = elem)
+        files(index) = versionFiles.toArray
       }
-      MergeFilePartition(bucketId, files, isSingleFile)
     }
+    logInfo("[Debug][huazeng]on getFilePartitions:" + files.toString)
+    val partition = MergeFilePartition(bucketId, files, isSingleFile)
+    logInfo("[Debug][huazeng]on getFilePartitions:" + partition.toString)
+    Seq(partition)
+
   }
 
 
@@ -167,6 +179,7 @@ case class NativeParquetScan(sparkSession: SparkSession,
                          requestFilesSchemaMap: Map[String, StructType],
                          requestDataSchema: StructType,
                          requestPartitionFields: Array[String]): MergePartitionedFile = {
+    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.NativeParquetScan.getPartitionedFile")
     val hosts = getBlockHosts(getBlockLocations(file), 0, file.getLen)
 
     val filePathStr = filePath
@@ -184,7 +197,8 @@ case class NativeParquetScan(sparkSession: SparkSession,
     val partitionSchemaInfo = requestPartitionFields.map(m => (m, tableInfo.range_partition_schema(m).dataType))
     val requestDataInfo = requestDataSchema.map(m => (m.name, m.dataType))
 
-    MergePartitionedFile(
+
+    val mergePartitionedFile = MergePartitionedFile(
       partitionValues = partitionValues,
       filePath = filePath.toUri.toString,
       start = 0,
@@ -198,6 +212,8 @@ case class NativeParquetScan(sparkSession: SparkSession,
       rangeVersion = touchedFileInfo.range_version,
       fileBucketId = -1,
       locations = hosts)
+    logInfo("[Debug][huazeng]" + mergePartitionedFile.toString)
+    mergePartitionedFile
   }
 
   private def getBlockLocations(file: FileStatus): Array[BlockLocation] = file match {

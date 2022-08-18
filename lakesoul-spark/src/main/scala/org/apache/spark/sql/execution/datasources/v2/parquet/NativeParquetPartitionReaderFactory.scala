@@ -35,12 +35,12 @@ case class NativeParquetPartitionReaderFactory(sqlConf: SQLConf,
 
 
   def createNativeVectorizedReader(files: Array[MergePartitionedFile]): NativeVectorizedReader={
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.RangeParquetPartitionReaderFactory.createNativeVectorizedReader")
+    logInfo("[Debug][huazeng]on createNativeVectorizedReader")
     new NativeVectorizedReader(files)
   }
 
   override def buildColumnarReader(files: Array[MergePartitionedFile]): PartitionReader[ColumnarBatch] = {
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.RangeParquetPartitionReaderFactory.buildColumnarReader")
+    logInfo("[Debug][huazeng]on buildColumnarReader")
     val vectorizedReader = createNativeVectorizedReader(files)
 
     new PartitionReader[ColumnarBatch] {

@@ -22,13 +22,13 @@ import org.apache.spark.util.SerializableConfiguration
   * @param partitionSchema Schema of partitions.
   *                        //  * @param filterMap Filters to be pushed down in the batch scan.
   */
-case class RangeParquetPartitionReaderFactory(sqlConf: SQLConf,
-                                              broadcastedConf: Broadcast[SerializableConfiguration],
-                                              dataSchema: StructType,
-                                              readDataSchema: StructType,
-                                              partitionSchema: StructType,
-                                              filters: Array[Filter])
-  extends RangeFilePartitionReaderFactory with Logging{
+case class NativeParquetPartitionReaderFactory(sqlConf: SQLConf,
+                                               broadcastedConf: Broadcast[SerializableConfiguration],
+                                               dataSchema: StructType,
+                                               readDataSchema: StructType,
+                                               partitionSchema: StructType,
+                                               filters: Array[Filter])
+  extends NativeFilePartitionReaderFactory with Logging{
 
   private val enableOffHeapColumnVector = sqlConf.offHeapColumnVectorEnabled
   private val capacity = sqlConf.parquetVectorizedReaderBatchSize

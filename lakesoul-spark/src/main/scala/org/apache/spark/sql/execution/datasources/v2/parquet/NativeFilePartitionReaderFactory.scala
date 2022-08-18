@@ -9,7 +9,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.Native.NativeFilePa
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 
-abstract class RangeFilePartitionReaderFactory extends PartitionReaderFactory with Logging{
+abstract class NativeFilePartitionReaderFactory extends PartitionReaderFactory with Logging{
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.RangeFilePartitionReaderFactory.createReader")
     assert(partition.isInstanceOf[MergeFilePartition])

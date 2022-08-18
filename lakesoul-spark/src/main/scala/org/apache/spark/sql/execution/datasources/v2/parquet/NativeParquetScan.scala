@@ -19,17 +19,17 @@ import org.apache.spark.util.SerializableConfiguration
 
 import java.util.{Locale, OptionalLong}
 
-case class RangeParquetScan(sparkSession: SparkSession,
-                              hadoopConf: Configuration,
-                              fileIndex: LakeSoulFileIndexV2,
-                              dataSchema: StructType,
-                              readDataSchema: StructType,
-                              readPartitionSchema: StructType,
-                              pushedFilters: Array[Filter],
-                              options: CaseInsensitiveStringMap,
-                              tableInfo: TableInfo,
-                              partitionFilters: Seq[Expression] = Seq.empty,
-                              dataFilters: Seq[Expression] = Seq.empty
+case class NativeParquetScan(sparkSession: SparkSession,
+                             hadoopConf: Configuration,
+                             fileIndex: LakeSoulFileIndexV2,
+                             dataSchema: StructType,
+                             readDataSchema: StructType,
+                             readPartitionSchema: StructType,
+                             pushedFilters: Array[Filter],
+                             options: CaseInsensitiveStringMap,
+                             tableInfo: TableInfo,
+                             partitionFilters: Seq[Expression] = Seq.empty,
+                             dataFilters: Seq[Expression] = Seq.empty
                               )
   extends MergeDeltaParquetScan(sparkSession,
     hadoopConf,
@@ -50,7 +50,7 @@ case class RangeParquetScan(sparkSession: SparkSession,
       new SerializableConfiguration(hadoopConf))
 
 
-    RangeParquetPartitionReaderFactory(sparkSession.sessionState.conf, broadcastedConf,
+    NativeParquetPartitionReaderFactory(sparkSession.sessionState.conf, broadcastedConf,
       dataSchema, readDataSchema, readPartitionSchema, pushedFilters)
   }
 

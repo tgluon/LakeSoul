@@ -26,7 +26,7 @@ import org.apache.spark.sql.connector.read.{Scan, SupportsPushDownFilters}
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFilters, SparkToParquetSchemaConverter}
 import org.apache.spark.sql.execution.datasources.v2.FileScanBuilder
 import org.apache.spark.sql.execution.datasources.v2.merge.{MultiPartitionMergeBucketScan, MultiPartitionMergeScan, OnePartitionMergeBucketScan}
-import org.apache.spark.sql.execution.datasources.v2.parquet.{BucketParquetScan, ParquetScan, RangeParquetScan}
+import org.apache.spark.sql.execution.datasources.v2.parquet.{BucketParquetScan, ParquetScan, NativeParquetScan}
 import org.apache.spark.sql.lakesoul.sources.{LakeSoulSQLConf, LakeSoulSourceUtils}
 import org.apache.spark.sql.lakesoul.utils.{DataFileInfo, SparkUtil, TableInfo}
 import org.apache.spark.sql.lakesoul.{LakeSoulFileIndexV2, LakeSoulUtils}
@@ -116,6 +116,7 @@ case class LakeSoulScanBuilder(sparkSession: SparkSession,
     }
 
     if (tableInfo.hash_partition_columns.isEmpty || fileInfo.size == 0) {
+      nativeParquetScan()
       parquetScan()
     }
     else if (onlyOnePartition) {
@@ -136,12 +137,15 @@ case class LakeSoulScanBuilder(sparkSession: SparkSession,
   }
 
 
-  def parquetScan(): Scan = {
-    logInfo("[Debug][huazeng]on org.apache.spark.sql.lakesoul.catalog.LakeSoulScanBuilder.parquetScan")
-//    ParquetScan(sparkSession, hadoopConf, fileIndex, dataSchema, readDataSchema(),
-//      readPartitionSchema(), pushedParquetFilters, options, Seq(parseFilter()))
-    RangeParquetScan(sparkSession, hadoopConf, fileIndex, dataSchema, readDataSchema(),
+  def nativeParquetScan(): Scan = {
+    logInfo("[Debug][huazeng]on org.apache.spark.sql.lakesoul.catalog.LakeSoulScanBuilder.NativeParquetScan")
+    NativeParquetScan(sparkSession, hadoopConf, fileIndex, dataSchema, readDataSchema(),
       readPartitionSchema(), pushedParquetFilters, options, tableInfo, Seq(parseFilter()))
+  }
+
+  def parquetScan(): Scan = {
+    ParquetScan(sparkSession, hadoopConf, fileIndex, dataSchema, readDataSchema(),
+      readPartitionSchema(), pushedParquetFilters, options, Seq(parseFilter()))
   }
 
 }

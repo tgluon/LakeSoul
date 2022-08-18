@@ -2,8 +2,9 @@ package org.apache.spark.sql.execution.datasources.v2.parquet
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan, Statistics, SupportsReportStatistics}
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
 import org.apache.spark.sql.execution.datasources.v2.FileScan
@@ -16,7 +17,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.SerializableConfiguration
 
-import java.util.OptionalLong
+import java.util.{Locale, OptionalLong}
 
 case class RangeParquetScan(sparkSession: SparkSession,
                               hadoopConf: Configuration,
@@ -52,6 +53,8 @@ case class RangeParquetScan(sparkSession: SparkSession,
     RangeParquetPartitionReaderFactory(sparkSession.sessionState.conf, broadcastedConf,
       dataSchema, readDataSchema, readPartitionSchema, pushedFilters)
   }
+
+  override lazy val newFileIndex: LakeSoulFileIndexV2 = fileIndex
 
   override def getFilePartitions(conf: SQLConf,
                                  partitionedFiles: Seq[MergePartitionedFile],

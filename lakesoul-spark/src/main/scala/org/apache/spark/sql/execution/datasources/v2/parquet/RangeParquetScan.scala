@@ -7,6 +7,8 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan, Statistics, SupportsReportStatistics}
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
 import org.apache.spark.sql.execution.datasources.v2.FileScan
+import org.apache.spark.sql.execution.datasources.v2.merge.{MergeDeltaParquetScan, MergeFilePartition, MergePartitionedFile}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.lakesoul.{LakeSoulFileIndexV2, LakeSoulTableForCdc}
 import org.apache.spark.sql.lakesoul.utils.TableInfo
 import org.apache.spark.sql.sources.{EqualTo, Filter, Not}
@@ -25,13 +27,21 @@ case class RangeParquetScan(sparkSession: SparkSession,
                               pushedFilters: Array[Filter],
                               options: CaseInsensitiveStringMap,
                               tableInfo: TableInfo,
-                              partitionFilters: Seq[Expression] = Seq.empty
+                              partitionFilters: Seq[Expression] = Seq.empty,
+                              dataFilters: Seq[Expression] = Seq.empty
                               )
-  extends Scan with Batch
-    with SupportsReportStatistics with Logging {
+  extends MergeDeltaParquetScan(sparkSession,
+    hadoopConf,
+    fileIndex,
+    dataSchema,
+    readDataSchema,
+    readPartitionSchema,
+    pushedFilters,
+    options,
+    tableInfo,
+    partitionFilters,
+    dataFilters) {
 
-  override def readSchema(): StructType =
-    StructType(readDataSchema.fields ++ readPartitionSchema.fields)
 
   override def createReaderFactory(): PartitionReaderFactory = {
     logInfo("[Debug][huazeng]createReaderFactory")
@@ -43,17 +53,25 @@ case class RangeParquetScan(sparkSession: SparkSession,
       dataSchema, readDataSchema, readPartitionSchema, pushedFilters)
   }
 
-  override def planInputPartitions(): Array[InputPartition] = ???
+  override def getFilePartitions(conf: SQLConf,
+                                 partitionedFiles: Seq[MergePartitionedFile],
+                                 bucketNum: Int): Seq[MergeFilePartition] = {
+    val groupByPartition = partitionedFiles.groupBy(_.rangeKey)
 
-  override def estimateStatistics(): Statistics = {
-    new Statistics {
-      override def sizeInBytes(): OptionalLong = {
-        val compressionFactor = sparkSession.sessionState.conf.fileCompressionFactor
-        val size = (compressionFactor * fileIndex.sizeInBytes).toLong
-        OptionalLong.of(size)
+    assert(groupByPartition.size == 1)
+
+    val fileWithBucketId = groupByPartition.head._2
+      .groupBy(_.fileBucketId).map(f => (f._1, f._2.toArray))
+
+    Seq.tabulate(bucketNum) { bucketId =>
+      var files = fileWithBucketId.getOrElse(bucketId, Array.empty)
+      val isSingleFile = files.size == 1
+
+      if(!isSingleFile){
+        val versionFiles=for(version <- 0 to files.size-1) yield files(version).copy(writeVersion = version + 1)
+        files=versionFiles.toArray
       }
-
-      override def numRows(): OptionalLong = OptionalLong.empty()
+      MergeFilePartition(bucketId, Array(files), isSingleFile)
     }
   }
 }

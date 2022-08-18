@@ -45,7 +45,7 @@ case class NativeParquetScan(sparkSession: SparkSession,
 
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    logInfo("[Debug][huazeng]createReaderFactory")
+    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.NativeParquetScan.createReaderFactory")
     val broadcastedConf = sparkSession.sparkContext.broadcast(
       new SerializableConfiguration(hadoopConf))
 
@@ -59,6 +59,7 @@ case class NativeParquetScan(sparkSession: SparkSession,
   override def getFilePartitions(conf: SQLConf,
                                  partitionedFiles: Seq[MergePartitionedFile],
                                  bucketNum: Int): Seq[MergeFilePartition] = {
+    logInfo("[Debug][huazeng]on org.apache.spark.sql.execution.datasources.v2.parquet.NativeParquetScan.getFilePartitions")
     val groupByPartition = partitionedFiles.groupBy(_.rangeKey)
 
     assert(groupByPartition.size == 1)

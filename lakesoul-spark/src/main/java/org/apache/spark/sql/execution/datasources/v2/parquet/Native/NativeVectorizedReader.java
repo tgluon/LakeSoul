@@ -16,6 +16,7 @@ public class NativeVectorizedReader implements AutoCloseable{
 
   public NativeVectorizedReader(MergePartitionedFile[] files){
     wrapper=new ArrowCDataWrapper();
+    wrapper.initializeConfigBuilder();
     for (int i = 0; i < files.length; i++) {
       wrapper.addFile(files[i].filePath());
     }

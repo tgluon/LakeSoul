@@ -28,12 +28,12 @@ case class NativeFilePartitionReader[T](filesInfo: Seq[(Array[MergePartitionedFi
         return false
       }
     }
-    if (nativeMergeLogic.alive()){
+    if (nativeMergeLogic.alive){
       return true
     } else if (partitionedFilesItr.hasNext) {
       nativeMergeLogic.closeReadFileReader()
       nativeMergeLogic = new NativeMergeLogic(partitionedFilesItr.next())
-      nativeMergeLogic.alive()
+      nativeMergeLogic.alive
     }
     false
   }

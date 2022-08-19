@@ -27,6 +27,7 @@ public class ArrowCDataWrapper {
         libraryOptions.put(LibraryOption.IgnoreError, true);
 
         String libName = String.join("/", System.getenv("LakeSoulLib"),"liblakesoul_io_c.so"); // platform specific name for liblakesoul_io_c
+//        String libName ="/Users/ceng/local/lib/lakesoul/liblakesoul_io_c.dylib";
         System.out.println(System.getenv("LakeSoulLib"));
         System.out.println(System.getenv("lakesoul_home"));
         System.out.println(libName);

@@ -88,6 +88,7 @@ pub extern "C" fn lakesoul_config_builder_add_single_file(
     file: *const c_char
 ) -> NonNull<ReaderConfigBuilder> {
     unsafe {
+        println!("[From Rust][lakesoul_config_builder_add_single_file], file={}", CStr::from_ptr(file).to_str().unwrap().to_string());
         let file = CStr::from_ptr(file).to_str().unwrap().to_string();
         convert_to_opaque(from_opaque::<ReaderConfigBuilder, LakeSoulReaderConfigBuilder>(builder).with_file(file))
     }

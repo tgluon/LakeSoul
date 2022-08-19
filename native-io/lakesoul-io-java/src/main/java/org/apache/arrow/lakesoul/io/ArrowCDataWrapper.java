@@ -25,15 +25,11 @@ public class ArrowCDataWrapper {
         Map<LibraryOption, Object> libraryOptions = new HashMap<>();
         libraryOptions.put(LibraryOption.LoadNow, true);
         libraryOptions.put(LibraryOption.IgnoreError, true);
-//        String libName = "/Users/ceng/Documents/GitHub/LakeSoul/native-io/target/debug/liblakesoul_io_c.dylib"; // platform specific name for liblakesoul_io_c
-        String libName = null;
-        try {
 
-            Arrays.stream(new File(this.getClass().getResource("/").toURI()).list()).forEach(s->{System.out.println(s);});
-            libName = new File(this.getClass().getResource("/liblakesoul_io_c.dylib").toURI()).getAbsolutePath();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        String libName = String.join("/", System.getenv("LakeSoulLib"),"liblakesoul_io_c.so"); // platform specific name for liblakesoul_io_c
+        System.out.println(System.getenv("LakeSoulLib"));
+        System.out.println(System.getenv("lakesoul_home"));
+        System.out.println(libName);
         libLakeSoulIO = LibraryLoader.loadLibrary(
                 LibLakeSoulIO.class,
                 libraryOptions,

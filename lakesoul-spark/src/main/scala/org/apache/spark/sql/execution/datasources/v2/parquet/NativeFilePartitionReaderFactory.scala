@@ -19,7 +19,6 @@ abstract class NativeFilePartitionReaderFactory extends PartitionReaderFactory w
 //      assert(files.forall(_.isInstanceOf[MergePartitionedFile]))
       logInfo("[Debug][huazeng]on createReader "+files.forall(_.isInstanceOf[MergePartitionedFile]).toString)
       val reader = buildColumnarReader(files)
-      logInfo("[Debug][huazeng]on createReader " + reader.toString)
       files -> reader
     }.toSeq
     logInfo("[Debug][huazeng]on createReader " + iter.toString())

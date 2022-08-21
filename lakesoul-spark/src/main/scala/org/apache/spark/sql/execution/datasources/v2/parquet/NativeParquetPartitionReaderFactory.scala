@@ -36,7 +36,8 @@ case class NativeParquetPartitionReaderFactory(sqlConf: SQLConf,
 
   def createNativeVectorizedReader(files: Array[MergePartitionedFile]): NativeVectorizedReader={
     logInfo("[Debug][huazeng]on createNativeVectorizedReader")
-    new NativeVectorizedReader(files)
+    val vectorizedReader = new NativeVectorizedReader(files, partitionSchema, capacity)
+    vectorizedReader
   }
 
   override def buildColumnarReader(files: Array[MergePartitionedFile]): PartitionReader[ColumnarBatch] = {

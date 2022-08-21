@@ -3,27 +3,49 @@ package org.apache.spark.sql.execution.datasources.v2.parquet.Native;
 import org.apache.arrow.lakesoul.io.ArrowCDataWrapper;
 import org.apache.arrow.lakesoul.io.read.LakeSoulArrowReader;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.spark.memory.MemoryMode;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.execution.datasources.v2.merge.MergePartitionedFile;
+import org.apache.spark.sql.execution.vectorized.ColumnVectorUtils;
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector;
+import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector;
+import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ArrowUtils;
+import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.Closeable;
 import java.io.IOException;
 
 public class NativeVectorizedReader implements AutoCloseable{
+
+  // The capacity of vectorized batch.
+  private int capacity;
   private ArrowCDataWrapper wrapper;
   private LakeSoulArrowReader reader;
 
-  public NativeVectorizedReader(MergePartitionedFile[] files){
+  private WritableColumnVector[] partitionColumnVectors;
+
+  /**
+   * The memory mode of the columnarBatch
+   */
+  private final MemoryMode MEMORY_MODE;
+
+  public NativeVectorizedReader(MergePartitionedFile[] files, StructType partitionSchema, int capacity){
     wrapper=new ArrowCDataWrapper();
     wrapper.initializeConfigBuilder();
-    for (int i = 0; i < files.length; i++) {
-      wrapper.addFile(files[i].filePath());
-    }
+    wrapper.addFile(files[0].filePath());
+
     wrapper.setThreadNum(2);
     wrapper.createReader();
     wrapper.startReader(bool -> {});
     reader = new LakeSoulArrowReader(wrapper);
+
+    MEMORY_MODE = MemoryMode.ON_HEAP;
+    initializePartitionColumns(MEMORY_MODE, partitionSchema, files[0].partitionValues());
+    this.capacity = capacity;
   }
 
   public boolean nextKeyValue() throws IOException {
@@ -32,7 +54,42 @@ public class NativeVectorizedReader implements AutoCloseable{
 
   public ColumnarBatch getCurrentValue() {
     VectorSchemaRoot vsr = reader.nextResultVectorSchemaRoot();
-    return new ColumnarBatch(ArrowUtils.asArrayColumnVector(vsr), vsr.getRowCount());
+    return new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), capacity);
+  }
+
+  // partition columns appended to the end of the batch.
+  // For example, if the data contains two columns, with 2 partition columns:
+  // Columns 0,1: data columns
+  // Column 2: partitionValues[0]
+  // Column 3: partitionValues[1]
+  public void initializePartitionColumns(
+          MemoryMode memMode,
+          StructType partitionColumns,
+          InternalRow partitionValues) {
+    StructType partitionSchema = new StructType();
+    if (partitionColumns != null) {
+      for (StructField f : partitionColumns.fields()) {
+        partitionSchema = partitionSchema.add(f);
+      }
+    }
+    if (memMode == MemoryMode.OFF_HEAP) {
+      partitionColumnVectors = OffHeapColumnVector.allocateColumns(capacity, partitionSchema);
+    } else {
+      partitionColumnVectors = OnHeapColumnVector.allocateColumns(capacity, partitionSchema);
+    }
+    if (partitionColumns != null) {
+      for (int i = 0; i < partitionColumns.fields().length; i++) {
+        ColumnVectorUtils.populate(partitionColumnVectors[i], partitionValues, i);
+        partitionColumnVectors[i].setIsConstant();
+      }
+    }
+  }
+
+  private ColumnVector[] concatBatchVectorWithPartitionVectors(ColumnVector[] batchVectors){
+    ColumnVector[] descColumnVectors = new ColumnVector[batchVectors.length + partitionColumnVectors.length];
+    System.arraycopy(batchVectors, 0, descColumnVectors, 0, batchVectors.length);
+    System.arraycopy(partitionColumnVectors, 0, descColumnVectors, partitionColumnVectors.length, partitionColumnVectors.length);
+    return descColumnVectors;
   }
 
 

@@ -3,6 +3,7 @@ package org.apache.spark.sql.execution.datasources.v2.parquet.Native;
 import org.apache.arrow.lakesoul.io.ArrowCDataWrapper;
 import org.apache.arrow.lakesoul.io.read.LakeSoulArrowReader;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.spark.internal.Logging;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.execution.datasources.v2.merge.MergePartitionedFile;
@@ -15,11 +16,12 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ArrowUtils;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import scala.Function0;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-public class NativeVectorizedReader implements AutoCloseable{
+public class NativeVectorizedReader implements AutoCloseable {
 
   // The capacity of vectorized batch.
   private int capacity;
@@ -66,6 +68,8 @@ public class NativeVectorizedReader implements AutoCloseable{
           MemoryMode memMode,
           StructType partitionColumns,
           InternalRow partitionValues) {
+    System.out.println("[Debug][huazeng]on initializePartitionColumns");
+    System.out.println("[Debug][huazeng]on initializePartitionColumns, partitionValues:"+partitionValues.toString());
     StructType partitionSchema = new StructType();
     if (partitionColumns != null) {
       for (StructField f : partitionColumns.fields()) {
@@ -79,16 +83,20 @@ public class NativeVectorizedReader implements AutoCloseable{
     }
     if (partitionColumns != null) {
       for (int i = 0; i < partitionColumns.fields().length; i++) {
-        ColumnVectorUtils.populate(partitionColumnVectors[i], partitionValues, i);
+        ColumnVectorUtils.populate(partitionColumnVectors[i], partitionValues, 0);
         partitionColumnVectors[i].setIsConstant();
       }
     }
+    System.out.println("[Debug][huazeng]on initializePartitionColumns: partitionColumnVectors.length=" + partitionColumnVectors.length);
+//    System.out.println(partitionColumnVectors[0]);
   }
 
   private ColumnVector[] concatBatchVectorWithPartitionVectors(ColumnVector[] batchVectors){
     ColumnVector[] descColumnVectors = new ColumnVector[batchVectors.length + partitionColumnVectors.length];
     System.arraycopy(batchVectors, 0, descColumnVectors, 0, batchVectors.length);
-    System.arraycopy(partitionColumnVectors, 0, descColumnVectors, partitionColumnVectors.length, partitionColumnVectors.length);
+    System.arraycopy(partitionColumnVectors, 0, descColumnVectors, batchVectors.length,  partitionColumnVectors.length);
+    System.out.println("[Debug][huazeng]on concatBatchVectorWithPartitionVectors");
+//    System.out.println(descColumnVectors[batchVectors.length]);
     return descColumnVectors;
   }
 

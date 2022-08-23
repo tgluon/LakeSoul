@@ -140,7 +140,7 @@ case class LakeSoulScanBuilder(sparkSession: SparkSession,
   def nativeParquetScan(): Scan = {
     logInfo("[Debug][huazeng]on org.apache.spark.sql.lakesoul.catalog.LakeSoulScanBuilder.NativeParquetScan")
     NativeParquetScan(sparkSession, hadoopConf, fileIndex, dataSchema, readDataSchema(),
-      readPartitionSchema(), pushedParquetFilters, options, tableInfo, Seq(parseFilter()))
+      readPartitionSchema(), pushedParquetFilters, options, Seq(parseFilter()))
   }
 
   def parquetScan(): Scan = {

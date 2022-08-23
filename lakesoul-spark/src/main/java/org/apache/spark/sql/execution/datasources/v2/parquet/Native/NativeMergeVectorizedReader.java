@@ -21,7 +21,7 @@ import scala.Function0;
 import java.io.Closeable;
 import java.io.IOException;
 
-public class NativeVectorizedReader implements AutoCloseable {
+public class NativeMergeVectorizedReader implements AutoCloseable {
 
   // The capacity of vectorized batch.
   private int capacity;
@@ -35,7 +35,9 @@ public class NativeVectorizedReader implements AutoCloseable {
    */
   private final MemoryMode MEMORY_MODE;
 
-  public NativeVectorizedReader(MergePartitionedFile[] files, StructType partitionSchema, int capacity){
+
+
+  public NativeMergeVectorizedReader(MergePartitionedFile[] files, StructType partitionSchema, int capacity){
     wrapper=new ArrowCDataWrapper();
     wrapper.initializeConfigBuilder();
     wrapper.addFile(files[0].filePath());

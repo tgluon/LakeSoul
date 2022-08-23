@@ -116,8 +116,8 @@ case class LakeSoulScanBuilder(sparkSession: SparkSession,
     }
 
     if (tableInfo.hash_partition_columns.isEmpty || fileInfo.size == 0) {
-//      nativeParquetScan()
-      parquetScan()
+      nativeParquetScan()
+//      parquetScan()
     }
     else if (onlyOnePartition) {
       OnePartitionMergeBucketScan(sparkSession, hadoopConf, fileIndex, dataSchema, mergeReadDataSchema(),

@@ -10,4 +10,5 @@
 /arrow-c-data-jni/target/
 .DS_Store
 *.iml
-/native-io/lakesoul-io-java/src/test/resources/liblakesoul_io_c.dylib
+/native-io/lakesoul-io-java/target/
+/native-io/lakesoul-io-java/.idea/

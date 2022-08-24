@@ -45,7 +45,7 @@ public class NativeMergeVectorizedReader implements AutoCloseable {
     wrapper.setThreadNum(2);
     wrapper.createReader();
     wrapper.startReader(bool -> {});
-    reader = new LakeSoulArrowReader(wrapper);
+    reader = new LakeSoulArrowReader(wrapper, 2000);
 
     MEMORY_MODE = MemoryMode.ON_HEAP;
     initializePartitionColumns(MEMORY_MODE, partitionSchema, files[0].partitionValues());

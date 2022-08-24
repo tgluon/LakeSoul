@@ -160,6 +160,10 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
       columnarBatch.close();
       columnarBatch = null;
     }
+    if (nativeReader != null) {
+      nativeReader.close();
+      nativeReader = null;
+    }
     super.close();
   }
 
@@ -336,7 +340,7 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
     wrapper.setThreadNum(2);
     wrapper.createReader();
     wrapper.startReader(bool -> {});
-    nativeReader = new LakeSoulArrowReader(wrapper);
+    nativeReader = new LakeSoulArrowReader(wrapper, 1000);
   }
 
   private void checkEndOfRowGroup() throws IOException {

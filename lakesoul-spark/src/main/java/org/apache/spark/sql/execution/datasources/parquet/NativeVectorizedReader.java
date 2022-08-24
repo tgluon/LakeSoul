@@ -178,8 +178,9 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
 
   @Override
   public Object getCurrentValue() {
-    VectorSchemaRoot vsr = nativeReader.nextResultVectorSchemaRoot();
-    return  new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), capacity);
+    System.out.println("[Debug][huazeng]on rowsReturned, :"+rowsReturned + " totalRowCount:" + totalRowCount);
+    if (returnColumnarBatch) return columnarBatch;
+    return columnarBatch.getRow(batchIdx - 1);
 //    if (returnColumnarBatch) return columnarBatch;
 //    return columnarBatch.getRow(batchIdx - 1);
   }
@@ -198,7 +199,7 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
   private void initBatch(
           MemoryMode memMode,
           StructType partitionColumns,
-          InternalRow partitionValues) {
+          InternalRow partitionValues) throws IOException {
     StructType partitionSchema = new StructType();
     if (partitionColumns != null) {
       System.out.println("[Debug][huazeng]on initBatch, partitionValues:"+partitionValues.toString());
@@ -218,13 +219,20 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
         partitionColumnVectors[i].setIsConstant();
       }
     }
+    if (nativeReader.hasNext()) {
+      VectorSchemaRoot vsr = nativeReader.nextResultVectorSchemaRoot();
+      columnarBatch = new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), vsr.getRowCount());
+    } else {
+      throw new IOException("expecting more recordbatch but reached last block. Read "
+              + rowsReturned + " out of " + totalRowCount);
+    }
   }
 
-  private void initBatch() {
+  private void initBatch() throws IOException {
     initBatch(MEMORY_MODE, null, null);
   }
 
-  public void initBatch(StructType partitionColumns, InternalRow partitionValues) {
+  public void initBatch(StructType partitionColumns, InternalRow partitionValues) throws IOException {
     initBatch(MEMORY_MODE, partitionColumns, partitionValues);
   }
 
@@ -233,8 +241,8 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
    * This object is reused. Calling this enables the vectorized reader. This should be called
    * before any calls to nextKeyValue/nextBatch.
    */
-  public ColumnarBatch resultBatch() {
-//    if (columnarBatch == null) initBatch();
+  public ColumnarBatch resultBatch() throws IOException {
+    if (columnarBatch == null) initBatch();
     return columnarBatch;
   }
 
@@ -249,7 +257,15 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
    * Advances to the next batch of rows. Returns false if there are no more.
    */
   public boolean nextBatch() throws IOException {
-    return nativeReader.hasNext();
+    columnarBatch.setNumRows(0);
+    if (rowsReturned >= totalRowCount) return false;
+//    checkEndOfRowGroup();
+    int num = (int) Math.min((long) capacity, totalRowCount - rowsReturned);
+    rowsReturned += num;
+    columnarBatch.setNumRows(num);
+    numBatched = num;
+    batchIdx = 0;
+    return true;
 //    for (WritableColumnVector vector : columnVectors) {
 //      vector.reset();
 //    }
@@ -323,25 +339,26 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
   }
 
   private void checkEndOfRowGroup() throws IOException {
+
     if (rowsReturned != totalCountLoadedSoFar) return;
     PageReadStore pages = reader.readNextRowGroup();
     if (pages == null) {
       throw new IOException("expecting more rows but reached last block. Read "
               + rowsReturned + " out of " + totalRowCount);
     }
-    List<ColumnDescriptor> columns = requestedSchema.getColumns();
-    List<Type> types = requestedSchema.asGroupType().getFields();
-    columnReaders = new VectorizedColumnReader[columns.size()];
-    for (int i = 0; i < columns.size(); ++i) {
-      if (missingColumns[i]) continue;
-      columnReaders[i] = new VectorizedColumnReader(
-              columns.get(i),
-              types.get(i).getOriginalType(),
-              pages.getPageReader(columns.get(i)),
-              convertTz,
-              datetimeRebaseMode,
-              int96RebaseMode);
-    }
+//    List<ColumnDescriptor> columns = requestedSchema.getColumns();
+//    List<Type> types = requestedSchema.asGroupType().getFields();
+//    columnReaders = new VectorizedColumnReader[columns.size()];
+//    for (int i = 0; i < columns.size(); ++i) {
+//      if (missingColumns[i]) continue;
+//      columnReaders[i] = new VectorizedColumnReader(
+//              columns.get(i),
+//              types.get(i).getOriginalType(),
+//              pages.getPageReader(columns.get(i)),
+//              convertTz,
+//              datetimeRebaseMode,
+//              int96RebaseMode);
+//    }
     totalCountLoadedSoFar += pages.getRowCount();
   }
 

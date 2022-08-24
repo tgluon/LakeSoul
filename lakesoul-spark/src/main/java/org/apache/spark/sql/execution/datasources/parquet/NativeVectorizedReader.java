@@ -178,7 +178,8 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
 
   @Override
   public Object getCurrentValue() {
-    System.out.println("[Debug][huazeng]on rowsReturned, :"+rowsReturned + " totalRowCount:" + totalRowCount);
+    System.out.println("[Debug][huazeng]on getCurrentValue, rowsReturned:"+rowsReturned + " totalRowCount:" + totalRowCount);
+    System.out.println("[Debug][huazeng]on getCurrentValue, columnarBatch.numCols():"+columnarBatch.numCols() + "columnarBatch.numRows():"+columnarBatch.numRows());
     if (returnColumnarBatch) return columnarBatch;
     return columnarBatch.getRow(batchIdx - 1);
 //    if (returnColumnarBatch) return columnarBatch;

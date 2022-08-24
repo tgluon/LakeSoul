@@ -47,6 +47,11 @@ public class ArrowCDataWrapper {
         readerConfigBuilder = libLakeSoulIO.lakesoul_config_builder_add_single_file(readerConfigBuilder, ptr);
     }
 
+    public void addColumn(String column){
+        Pointer ptr = LibLakeSoulIO.buildStringPointer(libLakeSoulIO, column);
+        readerConfigBuilder = libLakeSoulIO.lakesoul_config_builder_add_single_column(readerConfigBuilder, ptr);
+    }
+
     public void setThreadNum(int threadNum){
         readerConfigBuilder = libLakeSoulIO.lakesoul_config_builder_set_thread_num(readerConfigBuilder, threadNum);
     }

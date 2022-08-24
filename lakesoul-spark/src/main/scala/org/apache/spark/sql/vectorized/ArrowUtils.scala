@@ -14,7 +14,10 @@ object ArrowUtils{
     asScalaIteratorConverter(vectorSchemaRoot.getFieldVectors.iterator())
       .asScala
       .toSeq
-      .map(vector => asColumnVector(vector))
+      .map(vector => {
+        println(vector.getField)
+        asColumnVector(vector)
+      })
       .toArray
   }
 

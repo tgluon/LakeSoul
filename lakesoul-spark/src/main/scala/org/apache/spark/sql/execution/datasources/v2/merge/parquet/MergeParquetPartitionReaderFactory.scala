@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.datasources.v2.merge.parquet
 
 import java.net.URI
 import java.time.ZoneId
-
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
@@ -34,7 +33,8 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader}
 import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.v2.merge.MergePartitionedFile
 import org.apache.spark.sql.execution.datasources.v2.merge.parquet.batch.merge_operator.MergeOperator
-import org.apache.spark.sql.execution.datasources.{DataSourceUtils, RecordReaderIterator}
+import org.apache.spark.sql.execution.datasources.{DataSourceUtils, PartitionedFile, RecordReaderIterator}
+import org.apache.spark.sql.execution.datasources.v2.parquet.Native.NativeMergeVectorizedReader
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
 import org.apache.spark.sql.sources.Filter
@@ -114,37 +114,46 @@ case class MergeParquetPartitionReaderFactory(sqlConf: SQLConf,
     }
   }
 
-  private def createVectorizedReader(file: MergePartitionedFile): VectorizedParquetRecordReader = {
+  private def createVectorizedReader(file: MergePartitionedFile): NativeMergeVectorizedReader = {
     val vectorizedReader = buildReaderBase(file, createVectorizedReader)
-      .asInstanceOf[VectorizedParquetRecordReader]
+      .asInstanceOf[NativeMergeVectorizedReader]
     vectorizedReader.initBatch(partitionSchema, file.partitionValues)
     vectorizedReader
   }
 
+//  private def createVectorizedReader(file: MergePartitionedFile): VectorizedParquetRecordReader = {
+//    val vectorizedReader = buildReaderBase(file, createVectorizedReader)
+//      .asInstanceOf[VectorizedParquetRecordReader]
+//    vectorizedReader.initBatch(partitionSchema, file.partitionValues)
+//    vectorizedReader
+//  }
+
   private def createVectorizedReader(split: ParquetInputSplit,
-                                     partitionValues: InternalRow,
+                                     file: MergePartitionedFile,
                                      hadoopAttemptContext: TaskAttemptContextImpl,
                                      pushed: Option[FilterPredicate],
                                      convertTz: Option[ZoneId],
                                      datetimeRebaseMode: LegacyBehaviorPolicy.Value,
-                                     int96RebaseMode: LegacyBehaviorPolicy.Value): VectorizedParquetRecordReader = {
+                                     int96RebaseMode: LegacyBehaviorPolicy.Value): NativeMergeVectorizedReader = {
     val taskContext = Option(TaskContext.get())
-    val vectorizedReader = new VectorizedParquetRecordReader(
+    val vectorizedReader = new NativeMergeVectorizedReader(
       convertTz.orNull,
       datetimeRebaseMode.toString,
       int96RebaseMode.toString,
       enableOffHeapColumnVector && taskContext.isDefined,
-      capacity)
+      capacity,
+      file
+    )
     val iter = new RecordReaderIterator(vectorizedReader)
     // SPARK-23457 Register a task completion listener before `initialization`.
     taskContext.foreach(_.addTaskCompletionListener[Unit](_ => iter.close()))
-    logDebug(s"Appending $partitionSchema $partitionValues")
+    logDebug(s"Appending $partitionSchema ${file.partitionValues}")
     vectorizedReader
   }
 
   private def buildReaderBase[T](file: MergePartitionedFile,
                                  buildReaderFunc: (
-                                   ParquetInputSplit, InternalRow, TaskAttemptContextImpl,
+                                   ParquetInputSplit, MergePartitionedFile, TaskAttemptContextImpl,
                                      Option[FilterPredicate], Option[ZoneId],
                                      LegacyBehaviorPolicy.Value,
                                      LegacyBehaviorPolicy.Value) => RecordReader[Void, T]): RecordReader[Void, T] = {
@@ -209,7 +218,7 @@ case class MergeParquetPartitionReaderFactory(sqlConf: SQLConf,
       footerFileMetaData.getKeyValueMetaData.get,
       SQLConf.get.getConf(SQLConf.LEGACY_PARQUET_INT96_REBASE_MODE_IN_READ))
     val reader = buildReaderFunc(
-      split, file.partitionValues, hadoopAttemptContext, pushed, convertTz, datetimeRebaseMode, int96RebaseMode)
+      split, file, hadoopAttemptContext, pushed, convertTz, datetimeRebaseMode, int96RebaseMode)
     reader.initialize(split, hadoopAttemptContext)
     reader
   }

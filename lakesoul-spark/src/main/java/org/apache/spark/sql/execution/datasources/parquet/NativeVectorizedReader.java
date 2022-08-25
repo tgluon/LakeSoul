@@ -169,7 +169,7 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
 
   @Override
   public boolean nextKeyValue() throws IOException {
-    resultBatch();
+//    resultBatch();
 
     if (returnColumnarBatch) return nextBatch();
 
@@ -182,7 +182,7 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
 
   @Override
   public Object getCurrentValue() {
-    System.out.println("[Debug][huazeng]on getCurrentValue, rowsReturned:"+rowsReturned + " totalRowCount:" + totalRowCount);
+//    System.out.println("[Debug][huazeng]on getCurrentValue, rowsReturned:"+rowsReturned + " totalRowCount:" + totalRowCount);
     System.out.println("[Debug][huazeng]on getCurrentValue, columnarBatch.numCols():"+columnarBatch.numCols() + "columnarBatch.numRows():"+columnarBatch.numRows());
     if (returnColumnarBatch) return columnarBatch;
     return columnarBatch.getRow(batchIdx - 1);
@@ -205,31 +205,31 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
           MemoryMode memMode,
           StructType partitionColumns,
           InternalRow partitionValues) throws IOException {
-    StructType partitionSchema = new StructType();
+
+    System.out.println("[Debug][huazeng]on initBatch, partitionValues: "+partitionValues);
     if (partitionColumns != null) {
-      System.out.println("[Debug][huazeng]on initBatch, partitionValues:"+partitionValues.toString());
+      StructType partitionSchema = new StructType();
       for (StructField f : partitionColumns.fields()) {
         partitionSchema = partitionSchema.add(f);
       }
-    }
-    if (memMode == MemoryMode.OFF_HEAP) {
-      partitionColumnVectors = OffHeapColumnVector.allocateColumns(capacity, partitionSchema);
-    } else {
-      partitionColumnVectors = OnHeapColumnVector.allocateColumns(capacity, partitionSchema);
-    }
-    if (partitionColumns != null) {
+
+      if (memMode == MemoryMode.OFF_HEAP) {
+        partitionColumnVectors = OffHeapColumnVector.allocateColumns((int)totalRowCount, partitionSchema);
+      } else {
+        partitionColumnVectors = OnHeapColumnVector.allocateColumns((int)totalRowCount, partitionSchema);
+      }
       for (int i = 0; i < partitionColumns.fields().length; i++) {
         System.out.println("[Debug][huazeng]on initBatch: partitionColumnVectors.length=" + partitionColumnVectors.length);
         ColumnVectorUtils.populate(partitionColumnVectors[i], partitionValues, i);
         partitionColumnVectors[i].setIsConstant();
       }
     }
-    if (nativeReader.hasNext()) {
-      VectorSchemaRoot vsr = nativeReader.nextResultVectorSchemaRoot();
-      columnarBatch = new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), vsr.getRowCount());
+    if (nextVectorSchemaRoot == null) {
+      System.out.println("nextVectorSchemaRoot not ready");
+    } else if (nextVectorSchemaRoot.getRowCount() != totalRowCount) {
+      throw new IOException("nextVectorSchemaRoot row count error");
     } else {
-      throw new IOException("expecting more recordbatch but reached last block. Read "
-              + rowsReturned + " out of " + totalRowCount);
+      columnarBatch = new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(nextVectorSchemaRoot)), nextVectorSchemaRoot.getRowCount());
     }
   }
 
@@ -262,29 +262,20 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
    * Advances to the next batch of rows. Returns false if there are no more.
    */
   public boolean nextBatch() throws IOException {
-    columnarBatch.setNumRows(0);
-    if (rowsReturned >= totalRowCount) return false;
-//    checkEndOfRowGroup();
-    int num = (int) Math.min((long) capacity, totalRowCount - rowsReturned);
-    rowsReturned += num;
-    columnarBatch.setNumRows(num);
-    numBatched = num;
-    batchIdx = 0;
-    return true;
-//    for (WritableColumnVector vector : columnVectors) {
-//      vector.reset();
-//    }
+    if (nativeReader.hasNext()) {
+      nextVectorSchemaRoot = nativeReader.nextResultVectorSchemaRoot();
+      initBatch();
+//      columnarBatch = new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), vsr.getRowCount());
+      return true;
+    } else {
+      return false;
+    }
 //    columnarBatch.setNumRows(0);
 //    if (rowsReturned >= totalRowCount) return false;
-//    checkEndOfRowGroup();
-//
-//    int num = (int) Math.min((long) capacity, totalCountLoadedSoFar - rowsReturned);
-//    for (int i = 0; i < columnReaders.length; ++i) {
-//      if (columnReaders[i] == null) continue;
-//      columnReaders[i].readBatch(num, columnVectors[i]);
-//    }
+////    checkEndOfRowGroup();
+//    int num = (int) Math.min((long) capacity, totalRowCount - rowsReturned);
 //    rowsReturned += num;
-//    columnarBatch.setNumRows(num);
+//    columnarBatch.setNumRows((int)totalRowCount);
 //    numBatched = num;
 //    batchIdx = 0;
 //    return true;
@@ -295,7 +286,7 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
     System.arraycopy(batchVectors, 0, descColumnVectors, 0, batchVectors.length);
     System.arraycopy(partitionColumnVectors, 0, descColumnVectors, batchVectors.length,  partitionColumnVectors.length);
     System.out.println("[Debug][huazeng]on concatBatchVectorWithPartitionVectors");
-//    System.out.println(descColumnVectors[batchVectors.length]);
+    System.out.println(descColumnVectors[batchVectors.length]);
     return descColumnVectors;
   }
 
@@ -372,180 +363,9 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
   private WritableColumnVector[] partitionColumnVectors;
 
   private PartitionedFile file;
+
+  private VectorSchemaRoot nextVectorSchemaRoot;
+
 }
 
 
-//public class NativeVectorizedReader implements AutoCloseable {
-//
-//  // The capacity of vectorized batch.
-//  private int capacity;
-//  private ArrowCDataWrapper wrapper;
-//  private LakeSoulArrowReader reader;
-//
-//  private WritableColumnVector[] partitionColumnVectors;
-//
-//  /**
-//   * For each column, true if the column is missing in the file and we'll instead return NULLs.
-//   */
-//  private boolean[] missingColumns;
-//
-//  /**
-//   * The memory mode of the columnarBatch
-//   */
-//  private final MemoryMode MEMORY_MODE;
-//
-//  public NativeVectorizedReader(PartitionedFile file, StructType partitionSchema, int capacity){
-//    wrapper=new ArrowCDataWrapper();
-//    wrapper.initializeConfigBuilder();
-//    wrapper.addFile(file.filePath());
-//
-//    wrapper.setThreadNum(2);
-//    wrapper.createReader();
-//    wrapper.startReader(bool -> {});
-//    reader = new LakeSoulArrowReader(wrapper);
-//
-//    MEMORY_MODE = MemoryMode.ON_HEAP;
-//    this.capacity = capacity;
-//  }
-//
-//  public boolean nextKeyValue() throws IOException {
-//    return reader.hasNext();
-//  }
-//
-//  public ColumnarBatch getCurrentValue() {
-//    VectorSchemaRoot vsr = reader.nextResultVectorSchemaRoot();
-//    return new ColumnarBatch(concatBatchVectorWithPartitionVectors(ArrowUtils.asArrayColumnVector(vsr)), capacity);
-//  }
-//
-//  private void initializeInternal() throws IOException, UnsupportedOperationException {
-//    ParquetMetadata footer = readFooter(config, file, range(0, length));
-//
-//    List<BlockMetaData> blocks = footer.getBlocks();
-//    this.fileSchema = footer.getFileMetaData().getSchema();
-//    // Check that the requested schema is supported.
-//    missingColumns = new boolean[requestedSchema.getFieldCount()];
-//    List<ColumnDescriptor> columns = requestedSchema.getColumns();
-//    List<String[]> paths = requestedSchema.getPaths();
-//    for (int i = 0; i < requestedSchema.getFieldCount(); ++i) {
-//      Type t = requestedSchema.getFields().get(i);
-//      if (!t.isPrimitive() || t.isRepetition(Type.Repetition.REPEATED)) {
-//        throw new UnsupportedOperationException("Complex types not supported.");
-//      }
-//
-//      String[] colPath = paths.get(i);
-//      if (fileSchema.containsPath(colPath)) {
-//        ColumnDescriptor fd = fileSchema.getColumnDescription(colPath);
-//        if (!fd.equals(columns.get(i))) {
-//          throw new UnsupportedOperationException("Schema evolution not supported.");
-//        }
-//        missingColumns[i] = false;
-//      } else {
-//        if (columns.get(i).getMaxDefinitionLevel() == 0) {
-//          // Column is missing in data but the required data is non-nullable. This file is invalid.
-//          throw new IOException("Required column is missing in data file. Col: " +
-//                  Arrays.toString(colPath));
-//        }
-//        missingColumns[i] = true;
-//      }
-//    }
-//  }
-//
-//  // partition columns appended to the end of the batch.
-//  // For example, if the data contains two columns, with 2 partition columns:
-//  // Columns 0,1: data columns
-//  // Column 2: partitionValues[0]
-//  // Column 3: partitionValues[1]
-//  public void initializePartitionColumns(
-//          MemoryMode memMode,
-//          StructType partitionColumns,
-//          InternalRow partitionValues) {
-//    System.out.println("[Debug][huazeng]on initializePartitionColumns");
-//    System.out.println("[Debug][huazeng]on initializePartitionColumns, partitionValues:"+partitionValues.toString());
-//    StructType partitionSchema = new StructType();
-//    if (partitionColumns != null) {
-//      for (StructField f : partitionColumns.fields()) {
-//        partitionSchema = partitionSchema.add(f);
-//      }
-//    }
-//    if (memMode == MemoryMode.OFF_HEAP) {
-//      partitionColumnVectors = OffHeapColumnVector.allocateColumns(capacity, partitionSchema);
-//    } else {
-//      partitionColumnVectors = OnHeapColumnVector.allocateColumns(capacity, partitionSchema);
-//    }
-//    if (partitionColumns != null) {
-//      for (int i = 0; i < partitionColumns.fields().length; i++) {
-//        ColumnVectorUtils.populate(partitionColumnVectors[i], partitionValues, 0);
-//        partitionColumnVectors[i].setIsConstant();
-//      }
-//    }
-//    System.out.println("[Debug][huazeng]on initializePartitionColumns: partitionColumnVectors.length=" + partitionColumnVectors.length);
-////    System.out.println(partitionColumnVectors[0]);
-//  }
-//
-//  private ColumnVector[] concatBatchVectorWithPartitionVectors(ColumnVector[] batchVectors){
-//    ColumnVector[] descColumnVectors = new ColumnVector[batchVectors.length + partitionColumnVectors.length];
-//    System.arraycopy(batchVectors, 0, descColumnVectors, 0, batchVectors.length);
-//    System.arraycopy(partitionColumnVectors, 0, descColumnVectors, batchVectors.length,  partitionColumnVectors.length);
-//    System.out.println("[Debug][huazeng]on concatBatchVectorWithPartitionVectors");
-////    System.out.println(descColumnVectors[batchVectors.length]);
-//    return descColumnVectors;
-//  }
-//
-//  private void initBatch() {
-//    initBatch(MEMORY_MODE, null, null);
-//  }
-//
-//  public void initBatch(StructType partitionColumns, InternalRow partitionValues) {
-//    initBatch(MEMORY_MODE, partitionColumns, partitionValues);
-//  }
-//
-//
-//  /**
-//   * Closes this resource, relinquishing any underlying resources.
-//   * This method is invoked automatically on objects managed by the
-//   * {@code try}-with-resources statement.
-//   *
-//   * @throws Exception if this resource cannot be closed
-//   * @apiNote While this interface method is declared to throw {@code
-//   * Exception}, implementers are <em>strongly</em> encouraged to
-//   * declare concrete implementations of the {@code close} method to
-//   * throw more specific exceptions, or to throw no exception at all
-//   * if the close operation cannot fail.
-//   *
-//   * <p> Cases where the close operation may fail require careful
-//   * attention by implementers. It is strongly advised to relinquish
-//   * the underlying resources and to internally <em>mark</em> the
-//   * resource as closed, prior to throwing the exception. The {@code
-//   * close} method is unlikely to be invoked more than once and so
-//   * this ensures that the resources are released in a timely manner.
-//   * Furthermore it reduces problems that could arise when the resource
-//   * wraps, or is wrapped, by another resource.
-//   *
-//   * <p><em>Implementers of this interface are also strongly advised
-//   * to not have the {@code close} method throw {@link
-//   * InterruptedException}.</em>
-//   * <p>
-//   * This exception interacts with a thread's interrupted status,
-//   * and runtime misbehavior is likely to occur if an {@code
-//   * InterruptedException} is {@linkplain Throwable#addSuppressed
-//   * suppressed}.
-//   * <p>
-//   * More generally, if it would cause problems for an
-//   * exception to be suppressed, the {@code AutoCloseable.close}
-//   * method should not throw it.
-//   *
-//   * <p>Note that unlike the {@link Closeable#close close}
-//   * method of {@link Closeable}, this {@code close} method
-//   * is <em>not</em> required to be idempotent.  In other words,
-//   * calling this {@code close} method more than once may have some
-//   * visible side effect, unlike {@code Closeable.close} which is
-//   * required to have no effect if called more than once.
-//   * <p>
-//   * However, implementers of this interface are strongly encouraged
-//   * to make their {@code close} methods idempotent.
-//   */
-//  @Override
-//  public void close() throws Exception {
-//
-//  }
-//}

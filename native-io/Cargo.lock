@@ -92,6 +92,7 @@ dependencies = [
  "multiversion",
  "num",
  "packed_simd_2",
+ "rand",
  "regex",
  "regex-syntax",
  "serde_json",
@@ -139,6 +140,27 @@ name = "arrow-schema"
 version = "24.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86d1fef01f25e1452c86fa6887f078de8e0aaeeb828370feab205944cfc30e27"
+
+[[package]]
+name = "async-stream"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dad5c83079eae9969be7fadefe640a1c566901f05ff91ab221de4b6f68d9507e"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10f203db73a71dfa2fb6dd22763990fa26f3d2625a6da2da900d23b87d26be27"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "async-trait"
@@ -925,10 +947,14 @@ dependencies = [
 name = "lakesoul-io"
 version = "0.0.0"
 dependencies = [
+ "arrow",
+ "async-stream",
  "atomic_refcell",
  "datafusion",
  "derivative",
+ "futures",
  "object_store",
+ "smallvec",
  "tokio",
  "tokio-stream",
 ]
@@ -1661,9 +1687,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
+checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
 name = "snafu"

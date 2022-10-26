@@ -10,3 +10,7 @@ tokio-stream = "0.1.9"
 tokio = { version = "1", features = ["full"] }
 derivative = "2.2.0"
 atomic_refcell = "0.1.8"
+futures = "0.3"
+arrow = { version = "24.0.0", features = ["prettyprint", "simd", "ffi", "test_utils"] }
+smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
+async-stream = "0.3"

@@ -6,10 +6,9 @@ use std::sync::Arc;
 
 use derivative::Derivative;
 
-pub use datafusion::arrow::array::{export_array_into_raw, StructArray};
+pub use datafusion::arrow::array::StructArray;
 pub use datafusion::arrow::error::ArrowError;
 pub use datafusion::arrow::error::Result as ArrowResult;
-pub use datafusion::arrow::ffi::{FFI_ArrowArray, FFI_ArrowSchema};
 pub use datafusion::arrow::record_batch::RecordBatch;
 pub use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::runtime_env::{RuntimeConfig, RuntimeEnv};
@@ -153,16 +152,14 @@ impl LakeSoulReader {
         }
 
         let endpoint = config.object_store_options.get("fs.s3.endpoint");
-        let s3_store = aws::new_s3(
-            key,
-            secret,
-            region.unwrap(),
-            bucket.unwrap(),
-            endpoint,
-            None::<String>,
-            NonZeroUsize::new(4).unwrap(),
-            true,
-        )?;
+        let s3_store = aws::AmazonS3Builder::new()
+            .with_bucket_name(bucket.unwrap())
+            .with_endpoint(endpoint.unwrap())
+            .with_region(region.unwrap())
+            .with_access_key_id(key.unwrap())
+            .with_secret_access_key(secret.unwrap())
+            .with_allow_http(true)
+            .build()?;
         runtime.register_object_store("s3", bucket.unwrap(), Arc::new(s3_store));
         Ok(())
     }

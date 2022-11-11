@@ -2,15 +2,14 @@
 extern crate core;
 
 use core::ffi::{c_ptrdiff_t, c_size_t};
-use std::ffi::{c_char, c_void, CStr, CString};
-use std::ptr::NonNull;
-use std::slice;
-use std::sync::Arc;
-
 use lakesoul_io::lakesoul_reader::{
     export_array_into_raw, ArrowResult, FFI_ArrowArray, FFI_ArrowSchema, LakeSoulReader, LakeSoulReaderConfig,
     LakeSoulReaderConfigBuilder, RecordBatch, StructArray, SyncSendableMutableLakeSoulReader,
 };
+use std::ffi::{c_char, c_void, CStr, CString};
+use std::ptr::NonNull;
+use std::slice;
+use std::sync::Arc;
 
 // opaque types to pass as raw pointers
 #[repr(C)]
@@ -85,10 +84,13 @@ pub extern "C" fn new_lakesoul_reader_config_builder() -> NonNull<ReaderConfigBu
 #[no_mangle]
 pub extern "C" fn lakesoul_config_builder_add_single_file(
     builder: NonNull<ReaderConfigBuilder>,
-    file: *const c_char
+    file: *const c_char,
 ) -> NonNull<ReaderConfigBuilder> {
     unsafe {
-        println!("[From Rust][lakesoul_config_builder_add_single_file], file={}", CStr::from_ptr(file).to_str().unwrap().to_string());
+        println!(
+            "[From Rust][lakesoul_config_builder_add_single_file], file={}",
+            CStr::from_ptr(file).to_str().unwrap().to_string()
+        );
         let file = CStr::from_ptr(file).to_str().unwrap().to_string();
         convert_to_opaque(from_opaque::<ReaderConfigBuilder, LakeSoulReaderConfigBuilder>(builder).with_file(file))
     }
@@ -97,10 +99,13 @@ pub extern "C" fn lakesoul_config_builder_add_single_file(
 #[no_mangle]
 pub extern "C" fn lakesoul_config_builder_add_single_column(
     builder: NonNull<ReaderConfigBuilder>,
-    column: *const c_char
+    column: *const c_char,
 ) -> NonNull<ReaderConfigBuilder> {
     unsafe {
-        println!("[From Rust][lakesoul_config_builder_add_single_column], col={}", CStr::from_ptr(column).to_str().unwrap().to_string());
+        println!(
+            "[From Rust][lakesoul_config_builder_add_single_column], col={}",
+            CStr::from_ptr(column).to_str().unwrap().to_string()
+        );
         let column = CStr::from_ptr(column).to_str().unwrap().to_string();
         convert_to_opaque(from_opaque::<ReaderConfigBuilder, LakeSoulReaderConfigBuilder>(builder).with_column(column))
     }
@@ -112,10 +117,10 @@ pub extern "C" fn lakesoul_config_builder_set_thread_num(
     thread_num: c_size_t,
 ) -> NonNull<ReaderConfigBuilder> {
     println!("Setting thread_num={} for lakesoul_config_builder", thread_num);
-    convert_to_opaque(from_opaque::<ReaderConfigBuilder, LakeSoulReaderConfigBuilder>(builder).with_thread_num(thread_num))
+    convert_to_opaque(
+        from_opaque::<ReaderConfigBuilder, LakeSoulReaderConfigBuilder>(builder).with_thread_num(thread_num),
+    )
 }
-
-
 
 #[no_mangle]
 pub extern "C" fn lakesoul_config_builder_add_file(

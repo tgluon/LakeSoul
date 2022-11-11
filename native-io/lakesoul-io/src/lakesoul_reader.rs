@@ -1,14 +1,15 @@
 use atomic_refcell::AtomicRefCell;
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
-use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use derivative::Derivative;
 
+pub use datafusion::arrow::array::export_array_into_raw;
 pub use datafusion::arrow::array::StructArray;
 pub use datafusion::arrow::error::ArrowError;
 pub use datafusion::arrow::error::Result as ArrowResult;
+pub use datafusion::arrow::ffi::{FFI_ArrowArray, FFI_ArrowSchema};
 pub use datafusion::arrow::record_batch::RecordBatch;
 pub use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::runtime_env::{RuntimeConfig, RuntimeEnv};
@@ -71,7 +72,6 @@ impl LakeSoulReaderConfigBuilder {
         self.config.columns.push(col);
         self
     }
-
 
     pub fn with_columns(mut self, cols: Vec<String>) -> Self {
         self.config.columns = cols;
@@ -253,10 +253,7 @@ mod tests {
     #[test]
     fn test_reader_local_bloked() -> Result<()> {
         let reader_conf = LakeSoulReaderConfigBuilder::new()
-            .with_files(vec![
-                "parquet-testing/data/alltypes_plain.snappy.parquet"
-                    .to_string(),
-            ])
+            .with_files(vec!["parquet-testing/data/alltypes_plain.snappy.parquet".to_string()])
             .with_thread_num(2)
             .build();
         let reader = LakeSoulReader::new(reader_conf)?;

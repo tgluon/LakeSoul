@@ -2,5 +2,5 @@
 #![feature(is_some_with)]
 
 pub mod lakesoul_reader;
-pub mod sorted_merge_reader;
+pub mod sorted_stream_merger;
 pub mod merge_handler;

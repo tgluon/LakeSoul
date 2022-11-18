@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.56"
+version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
+checksum = "1e805d94e6b5001b651426cf4cd446b1ab5f319d27bab5c644f61de0a804360c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -402,6 +402,12 @@ checksum = "2b2466559f260f48ad25fe6317b3c8dac77b5bdb5763ac7d9d6103530663bc90"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "dary_heap"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82eecd74c7634706917b219b767d8624fc661dd1f0007a12f0bc977bd6849902"
 
 [[package]]
 name = "datafusion"
@@ -949,7 +955,9 @@ version = "0.0.0"
 dependencies = [
  "arrow",
  "async-stream",
+ "async-trait",
  "atomic_refcell",
+ "dary_heap",
  "datafusion",
  "derivative",
  "futures",

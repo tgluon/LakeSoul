@@ -34,7 +34,7 @@ object MorReadBenchmark {
       .config("spark.hadoop.fs.s3a.connection.maximum", 100)
 
     if (args.length >= 1 && args(0) == "--localtest")
-      builder.config("spark.hadoop.fs.s3a.endpoint", "http://localhost:9000")
+      builder.config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
         .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1")
         .config("spark.hadoop.fs.s3a.access.key", "minioadmin1")
         .config("spark.hadoop.fs.s3a.secret.key", "minioadmin1")
@@ -70,6 +70,8 @@ object MorReadBenchmark {
     } else{
       println(s"=====Reading with native io=====")
       SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_ENABLE.key, "true")
+      SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_MERGE_DELTA_FIRST.key, "true")
+
       SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_READER_AWAIT_TIMEOUT.key, "10000")
       spark.time({
         println("counting df")

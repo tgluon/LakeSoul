@@ -55,6 +55,11 @@ public class NativeIOReader extends NativeIOBase implements AutoCloseable {
         }
     }
 
+    public void setMergeDeltaFirst(boolean bool) {
+        Pointer mergeDeltaFirstPrt = LibLakeSoulIO.buildStringPointer(libLakeSoulIO, String.valueOf(bool));
+        ioConfigBuilder = libLakeSoulIO.lakesoul_config_builder_set_merge_delta_first(ioConfigBuilder, mergeDeltaFirstPrt);
+    }
+
     public void initializeReader() throws IOException {
         assert tokioRuntimeBuilder != null;
         assert ioConfigBuilder != null;

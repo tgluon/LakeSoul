@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.datasources.v2.merge.MergePartitionedFile
 import org.apache.spark.sql.execution.datasources.v2.merge.parquet.batch.merge_operator.MergeOperator
 import org.apache.spark.sql.execution.datasources.{DataSourceUtils, RecordReaderIterator}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.lakesoul.sources.LakeSoulSQLConf.{NATIVE_IO_ENABLE, NATIVE_IO_PREFETCHER_BUFFER_SIZE, NATIVE_IO_READER_AWAIT_TIMEOUT, NATIVE_IO_THREAD_NUM}
+import org.apache.spark.sql.lakesoul.sources.LakeSoulSQLConf.{NATIVE_IO_ENABLE, NATIVE_IO_MERGE_DELTA_FIRST, NATIVE_IO_PREFETCHER_BUFFER_SIZE, NATIVE_IO_READER_AWAIT_TIMEOUT, NATIVE_IO_THREAD_NUM}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{AtomicType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -82,6 +82,7 @@ case class NativeMergeParquetPartitionReaderFactory(sqlConf: SQLConf,
   private val nativeIOPrefecherBufferSize = sqlConf.getConf(NATIVE_IO_PREFETCHER_BUFFER_SIZE)
   private val nativeIOThreadNum = sqlConf.getConf(NATIVE_IO_THREAD_NUM)
   private val nativeIOAwaitTimeout = sqlConf.getConf(NATIVE_IO_READER_AWAIT_TIMEOUT)
+  private val nativeIOMergeDeltaFirst = sqlConf.getConf(NATIVE_IO_MERGE_DELTA_FIRST)
 
 
   // schemea: path->schema    source: path->file|path->file|path->file
@@ -187,6 +188,7 @@ case class NativeMergeParquetPartitionReaderFactory(sqlConf: SQLConf,
     vectorizedReader.setPrefetchBufferSize(nativeIOPrefecherBufferSize)
     vectorizedReader.setThreadNum(nativeIOThreadNum)
     vectorizedReader.setAwaitTimeout(nativeIOAwaitTimeout)
+    vectorizedReader.setMergeDeltaFirst(nativeIOMergeDeltaFirst)
 
 
     val iter = new RecordReaderIterator(vectorizedReader)

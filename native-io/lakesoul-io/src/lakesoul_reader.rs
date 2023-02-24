@@ -27,10 +27,10 @@ pub use datafusion::arrow::record_batch::RecordBatch;
 pub use datafusion::error::{DataFusionError, Result};
 use datafusion::logical_expr::col as logical_col;
 use datafusion::physical_plan::expressions::{PhysicalSortExpr, col};
+use datafusion::physical_plan::SendableRecordBatchStream;
 
 use datafusion::prelude::SessionContext;
 
-use core::pin::Pin;
 use datafusion::physical_plan::RecordBatchStream;
 use futures::StreamExt;
 
@@ -48,7 +48,7 @@ use crate::filter::Parser as FilterParser;
 pub struct LakeSoulReader {
     sess_ctx: SessionContext,
     config: LakeSoulIOConfig,
-    stream: Box<MaybeUninit<Pin<Box<dyn RecordBatchStream + Send>>>>,
+    stream: Box<MaybeUninit<SendableRecordBatchStream>>,
     pub(crate) schema: Option<SchemaRef>,
 }
 
@@ -68,20 +68,7 @@ impl LakeSoulReader {
             1 if self.config.primary_keys.is_empty() => {
                 let schema: SchemaRef = self.config.schema.0.clone();
 
-                let mut df = self
-                    .sess_ctx
-                    .read_parquet(self.config.files[0].as_str(), Default::default())
-                    .await?;
-
-                let file_schema = Arc::new(Schema::from(df.schema()));
-
-
-                let cols = file_schema.fields().iter().filter(|field| schema.index_of(field.name()).is_ok()).map(|field| logical_col(field.name().as_str())).collect::<Vec<_>>();
-
-                df = df.select(cols)?;
-
-                df = self.config.filter_strs.iter().try_fold(df, |df, f| df.filter(FilterParser::parse(f.clone(), file_schema.clone())))?;
-                let stream = df.execute_stream().await?;
+                let stream = self.read_file(schema.clone(), self.config.files[0].clone()).await?;
                 let stream = DefaultColumnStream::new_from_stream(stream, schema.clone());
                 
                 self.schema = Some(stream.schema().clone().into());
@@ -92,26 +79,10 @@ impl LakeSoulReader {
                 "LakeSoulReader has wrong number of file".to_string(),
             )),
             _ => {
-                let mut streams = Vec::with_capacity(self.config.files.len());
+                
                 let schema: SchemaRef = self.config.schema.0.clone();
 
-                for i in 0..self.config.files.len() {
-                    let mut df = self
-                        .sess_ctx
-                        .read_parquet(self.config.files[i].as_str(), Default::default())
-                        .await?;
 
-                    let file_schema = Arc::new(Schema::from(df.schema()));
-                    let cols = file_schema.fields().iter().filter(|field| schema.index_of(field.name()).is_ok()).map(|field| logical_col(field.name().as_str())).collect::<Vec<_>>();
-                    df = df.select(cols)?;   
-                    df = self.config.filter_strs.iter().try_fold(df, |df, f| df.filter(FilterParser::parse(f.clone(), file_schema.clone())))?;
-                    let stream = df
-                        .execute_stream()
-                        .await?;
-                    streams.push(SortedStream::new(
-                        stream,
-                    ));
-                }
 
                 let mut sort_exprs = Vec::with_capacity(self.config.primary_keys.len());
                 for i in 0..self.config.primary_keys.len() {
@@ -121,8 +92,40 @@ impl LakeSoulReader {
                     });
                 }
 
-                let merge_ops = self.config.schema.0.fields().iter().map(|field| MergeOperator::from_name(self.config.merge_operators.get(field.name()).unwrap_or(&String::from("UseLast")))).collect::<Vec<_>>();
+                let mut merge_ops = self.config.schema.0.fields().iter().map(|field| MergeOperator::from_name(self.config.merge_operators.get(field.name()).unwrap_or(&String::from("UseLast")))).collect::<Vec<_>>();
 
+                let mut streams = Vec::with_capacity(self.config.files.len());
+
+                if self.config.merge_delta_frist && self.config.files.len() > 1 {
+                    let mut delta_streams = Vec::with_capacity(self.config.files.len() - 1);
+                    for i in 1..self.config.files.len() {
+                        let stream = self.read_file(schema.clone(), self.config.files[i].clone()).await?;
+                        delta_streams.push(SortedStream::new(
+                            stream,
+                        ));
+                    }
+                    let merged_delta_stream = SortedStreamMerger::new_from_streams(
+                        delta_streams,
+                        schema.clone(),
+                        self.config.primary_keys.clone(),
+                        self.config.batch_size,
+                        merge_ops.clone(),
+                    ).unwrap();
+                    streams.push(SortedStream::new(self.read_file(schema.clone(), self.config.files[0].clone()).await?));
+                    streams.push(SortedStream::new(Box::pin(merged_delta_stream)));
+                    for i in 0..self.config.schema.0.fields().len() {
+                        if merge_ops[i] == MergeOperator::UseLast {
+                            merge_ops[i] = MergeOperator::UseLastNotNull
+                        }
+                    }
+                } else {
+                    for i in 0..self.config.files.len() {
+                        let stream = self.read_file(schema.clone(), self.config.files[i].clone()).await?;
+                        streams.push(SortedStream::new(
+                            stream,
+                        ));
+                    }
+                }
                 let merge_stream = SortedStreamMerger::new_from_streams(
                     streams,
                     schema,
@@ -136,6 +139,22 @@ impl LakeSoulReader {
                 Ok(())
             }
         }
+    }
+
+    async fn read_file(&self, schema: SchemaRef, file_name: String) -> Result<SendableRecordBatchStream> {
+        let mut df = self
+            .sess_ctx
+            .read_parquet(file_name.as_str(), Default::default())
+            .await?;
+
+        let file_schema = Arc::new(Schema::from(df.schema()));
+        let cols = file_schema.fields().iter().filter(|field| schema.index_of(field.name()).is_ok()).map(|field| logical_col(field.name().as_str())).collect::<Vec<_>>();
+        df = df.select(cols)?;   
+        df = self.config.filter_strs.iter().try_fold(df, |df, f| df.filter(FilterParser::parse(f.clone(), file_schema.clone())))?;
+        let stream = df
+            .execute_stream()
+            .await?;
+        Ok(stream)
     }
 
     pub async fn next_rb(&mut self) -> Option<ArrowResult<RecordBatch>> {

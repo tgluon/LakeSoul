@@ -38,6 +38,7 @@ class UpsertSuiteBase extends QueryTest
     session.conf.set("spark.sql.catalog.lakesoul", classOf[LakeSoulCatalog].getName)
     session.conf.set(SQLConf.DEFAULT_CATALOG.key, "lakesoul")
     session.conf.set(LakeSoulSQLConf.NATIVE_IO_ENABLE.key, true)
+    session.conf.set(LakeSoulSQLConf.NATIVE_IO_MERGE_DELTA_FIRST.key, true)
     session.sparkContext.setLogLevel("ERROR")
 
     session

@@ -152,4 +152,13 @@ object LakeSoulSQLConf {
         """.stripMargin)
       .intConf
       .createWithDefault(3000)
+
+  val NATIVE_IO_MERGE_DELTA_FIRST: ConfigEntry[Boolean] =
+    buildConf("native.io.merge.delta.first")
+      .doc(
+        """
+          |If NATIVE_IO_ENABLE=true, delta files will be merged before merging all files
+        """.stripMargin)
+      .booleanConf
+      .createWithDefault(false)
 }

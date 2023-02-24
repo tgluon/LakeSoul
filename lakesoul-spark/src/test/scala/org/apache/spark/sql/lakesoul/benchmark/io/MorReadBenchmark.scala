@@ -51,6 +51,7 @@ object MorReadBenchmark {
     if (args.length >= 2 ) {
       val NATIVE_IO_ENABLE = args(1)
       SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_ENABLE.key, NATIVE_IO_ENABLE)
+      SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_MERGE_DELTA_FIRST.key, "true")
       SQLConf.get.setConfString(LakeSoulSQLConf.NATIVE_IO_READER_AWAIT_TIMEOUT.key, "10000")
 
       println(s"=====Reading with NATIVE_IO_ENABLE=$NATIVE_IO_ENABLE=====")

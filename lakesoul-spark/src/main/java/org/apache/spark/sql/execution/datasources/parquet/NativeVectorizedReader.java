@@ -221,6 +221,10 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
     this.threadNum = threadNum;
   }
 
+  public void setMergeDeltaFirst(boolean mergeDeltaFirst) {
+    this.mergeDeltaFirst = mergeDeltaFirst;
+  }
+
   private void recreateNativeReader() throws IOException {
     if (nativeReader != null) {
       nativeReader.close();
@@ -252,6 +256,8 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
     if (mergeOps != null) {
       reader.addMergeOps(mergeOps);
     }
+
+    reader.setMergeDeltaFirst(mergeDeltaFirst);
 
     reader.initializeReader();
 
@@ -351,6 +357,8 @@ public class NativeVectorizedReader extends SpecificParquetRecordReaderBase<Obje
   private int threadNum = 2;
 
   private int awaitTimeout = 10000;
+
+  private boolean mergeDeltaFirst = false;
 
   private List<String> filePathList;
   private List<String> primaryKeys = null;

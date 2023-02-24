@@ -264,6 +264,17 @@ pub extern "C" fn lakesoul_config_builder_add_merge_op(
 }
 
 #[no_mangle]
+pub extern "C" fn lakesoul_config_builder_set_merge_delta_first(
+    builder: NonNull<IOConfigBuilder>,
+    merge_delta_first: *const c_char,
+) -> NonNull<IOConfigBuilder> {
+    unsafe {
+        let merge_delta_first = CStr::from_ptr(merge_delta_first).to_str().unwrap().to_string();
+        convert_to_opaque(from_opaque::<IOConfigBuilder, LakeSoulIOConfigBuilder>(builder).with_merge_delta_first(merge_delta_first))
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn lakesoul_config_builder_add_primary_keys(
     builder: NonNull<IOConfigBuilder>,
     pks: *const *const c_char,

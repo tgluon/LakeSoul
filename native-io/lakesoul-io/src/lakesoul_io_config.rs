@@ -25,6 +25,7 @@ use object_store::aws::AmazonS3Builder;
 use object_store::RetryConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::str::FromStr;
 use url::Url;
 
 #[derive(Debug, Derivative)]
@@ -73,6 +74,9 @@ pub struct LakeSoulIOConfig {
     // tokio runtime related configs
     #[derivative(Default(value = "2"))]
     pub(crate) thread_num: usize,
+
+    #[derivative(Default(value = "false"))]
+    pub(crate) merge_delta_frist: bool,
 }
 
 #[derive(Derivative)]
@@ -165,6 +169,11 @@ impl LakeSoulIOConfigBuilder {
 
     pub fn with_thread_num(mut self, thread_num: usize) -> Self {
         self.config.thread_num = thread_num;
+        self
+    }
+
+    pub fn with_merge_delta_first(mut self, value: String) -> Self {
+        self.config.merge_delta_frist = bool::from_str(value.as_str()).unwrap();
         self
     }
 

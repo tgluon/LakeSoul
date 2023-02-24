@@ -50,6 +50,8 @@ public interface LibLakeSoulIO {
 
     Pointer lakesoul_config_builder_add_merge_op(Pointer builder, Pointer field, Pointer mergeOp);
 
+    Pointer lakesoul_config_builder_set_merge_delta_first(Pointer builder, Pointer merge_delta_first);
+
     Pointer lakesoul_config_builder_set_schema(Pointer builder, long schemaAddr);
 
     Pointer lakesoul_config_builder_set_object_store_option(Pointer builder, Pointer key, Pointer value);
